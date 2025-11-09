@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -27,7 +26,17 @@ app.use('/api/chat', chatRoutes);
 
 // Health check
 app.get('/', (req, res) => {
-  res.json({ message: 'Invoice Analytics API is running!' });
+  res.json({ 
+    message: 'Invoice Analytics API is running!',
+    endpoints: {
+      stats: '/api/stats',
+      trends: '/api/stats/trends',
+      topVendors: '/api/stats/vendors/top10',
+      categories: '/api/stats/categories',
+      invoices: '/api/invoices',
+      chat: '/api/chat'
+    }
+  });
 });
 
 const PORT = process.env.PORT || 5000;

@@ -2,60 +2,89 @@ const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Invoice = require('../models/Invoice');
+const Vendor = require('../models/Vendor');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// POST /api/chat - Ask questions about data
+// POST /api/chat - Natural language queries
 router.post('/', async (req, res) => {
   try {
     const { question } = req.body;
     
-    // Get database schema info
-    const sampleInvoice = await Invoice.findOne().populate('vendor');
+    if (!question) {
+      return res.status(400).json({ error: 'Question is required' });
+    }
     
-    const prompt = `
-You are a MongoDB query assistant. Given this database schema:
+    // Database schema context for Gemini
+    const schemaContext = `
+Database Schema:
+- Collection: invoices
+  Fields: invoiceNumber (String), vendor (ObjectId ref), issueDate (Date), 
+          dueDate (Date), amount (Number), status (paid/pending/overdue), 
+          category (String), items (Array)
+  
+- Collection: vendors
+  Fields: name (String), email (String), phone (String), totalSpend (Number)
 
-Collection: invoices
-Fields: invoiceNumber, vendor (ref), date, dueDate, amount, status, category, items
-
-Collection: vendors
-Fields: name, email, phone, totalSpend
-
-User question: "${question}"
-
-Generate a MongoDB aggregation pipeline as a JSON array. Only return the JSON array, no explanation.
-
-Example format:
-[
-  { "$match": { "status": "paid" } },
-  { "$group": { "_id": null, "total": { "$sum": "$amount" } } }
-]
+Generate a MongoDB aggregation pipeline in JSON format to answer this question.
+Return ONLY valid JSON array, no markdown, no explanation.
 `;
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const prompt = `${schemaContext}
+
+Question: "${question}"
+
+Generate MongoDB aggregation pipeline:`;
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent(prompt);
     const response = result.response.text();
     
     // Extract JSON from response
-    const jsonMatch = response.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      return res.status(400).json({ error: 'Could not generate query' });
+    let pipeline;
+    try {
+      // Try to find JSON array in response
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        pipeline = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No valid JSON found');
+      }
+    } catch (parseError) {
+      console.error('Parse error:', parseError);
+      return res.status(400).json({ 
+        error: 'Could not generate valid query',
+        rawResponse: response 
+      });
     }
     
-    const pipeline = JSON.parse(jsonMatch[0]);
-    
-    // Execute the query
-    const queryResult = await Invoice.aggregate(pipeline);
+    // Execute the aggregation pipeline
+    let queryResult;
+    try {
+      queryResult = await Invoice.aggregate(pipeline);
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      return res.status(500).json({
+        error: 'Query execution failed',
+        pipeline,
+        message: dbError.message
+      });
+    }
     
     res.json({
       question,
       pipeline,
       results: queryResult,
-      sql: JSON.stringify(pipeline, null, 2) // For display
+      resultCount: queryResult.length,
+      generatedQuery: JSON.stringify(pipeline, null, 2)
     });
+    
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Chat error:', error);
+    res.status(500).json({ 
+      error: 'Chat failed',
+      message: error.message 
+    });
   }
 });
 
