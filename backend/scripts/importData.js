@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const Invoice = require('../models/Invoice');
 const Vendor = require('../models/Vendor');
-require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
 
 function safeNumber(v, fallback = 0) {
     if (v === null || v === undefined || v === '') return fallback;
@@ -90,8 +91,8 @@ async function importData() {
         }
 
         // Uncomment to wipe DB before import
-        // await Invoice.deleteMany({});
-        // await Vendor.deleteMany({});
+        await Invoice.deleteMany({});
+        await Vendor.deleteMany({});
 
         let imported = 0;
         let skipped = 0;
@@ -145,7 +146,8 @@ async function importData() {
                     continue;
                 }
 
-                const dateRaw = invoiceNested?.invoiceDate?.value ?? invoiceNested?.invoiceDate ?? record.createdAt?.$date ?? record.createdAt;
+                const I_dateRaw = invoiceNested?.invoiceDate?.value ?? invoiceNested?.invoiceDate ?? record.createdAt?.$date ?? record.createdAt;
+                const D_dateRaw = invoiceNested?.deliveryDate?.value ?? invoiceNested?.deliveryDate ?? record.createdAt?.$date ?? record.createdAt;
                 const dueDateRaw = paymentNested?.dueDate?.value ?? paymentNested?.dueDate ?? invoiceNested?.deliveryDate?.value ?? invoiceNested?.deliveryDate ?? record.dueDate;
                 const amountRaw = summaryNested?.invoiceTotal?.value ?? summaryNested?.invoiceTotal ?? summaryNested?.discountedTotal ?? record.amount ?? 0;
                 // const status = String(record.status ?? 'processed');
@@ -154,7 +156,8 @@ async function importData() {
                 const categoryRaw = summaryNested?.documentType?.value ?? summaryNested?.documentType ?? record.category ?? 'invoice';
                 const category = typeof categoryRaw === 'object' ? 'invoice' : String(categoryRaw || 'invoice');
 
-                const date = parseDate(dateRaw);
+                const invoiceDate = parseDate(I_dateRaw);
+                const deliveryDate = parseDate(D_dateRaw)
                 const dueDate = parseDate(dueDateRaw);
                 const amount = safeNumber(amountRaw, 0);
 
@@ -169,7 +172,8 @@ async function importData() {
                 const invoiceDoc = await Invoice.create({
                     invoiceNumber,
                     vendor: vendorDoc._id,
-                    date,
+                    invoiceDate,
+                    deliveryDate,
                     dueDate,
                     amount,
                     status,

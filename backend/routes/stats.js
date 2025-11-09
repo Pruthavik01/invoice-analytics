@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     
     // Total invoices this year
     const totalInvoices = await Invoice.countDocuments({
-      issueDate: {
+      invoiceDate: {
         $gte: new Date(`${currentYear}-01-01`),
         $lte: new Date(`${currentYear}-12-31`)
       }
@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
     const spendData = await Invoice.aggregate([
       {
         $match: {
-          issueDate: {
+          invoiceDate: {
             $gte: new Date(`${currentYear}-01-01`),
             $lte: new Date(`${currentYear}-12-31`)
           }

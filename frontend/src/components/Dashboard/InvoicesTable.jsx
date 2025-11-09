@@ -103,7 +103,7 @@ export default function InvoicesTable() {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                Invoice #
+                Invoice Id
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                 Vendor
@@ -142,7 +142,7 @@ export default function InvoicesTable() {
                     {invoice.vendor?.name || 'Unknown'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
-                    {formatDate(invoice.issueDate)}
+                    {formatDate(invoice.invoiceDate)}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-800">
                     ${invoice.amount.toLocaleString()}

@@ -11,13 +11,17 @@ const invoiceSchema = new mongoose.Schema({
     ref: 'Vendor',
     required: true
   },
-  issueDate: {
+  invoiceDate: {
+    type: Date,
+    required: true
+  },
+  deliveryDate: {
     type: Date,
     required: true
   },
   dueDate: {
     type: Date,
-    required: true
+    default: null
   },
   amount: {
     type: Number,
